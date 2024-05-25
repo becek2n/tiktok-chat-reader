@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok LIVE Chat Reader (Demo)</title>
+
+    <meta name="description" content="A chat reader for TikTok LIVE utilizing TikTok-Live-Connector and Socket.IO to forward the data to the client. This demo project uses the unofficial TikTok API to retrieve chat comments, gifts and other events from TikTok LIVE.">
+    <meta name="keywords" content="TikTok,Live,Livestream,Chat,Reader,Scraper,Tracker,tiktok.com,broadcast,api,library,node,node.js,javascript">
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script src="connection.js"></script>
+    <script src="app.js"></script>
+    <script src="live.js"></script>
+
+    <script>
+        function generateOverlay() {
+            let username = $('#uniqueIdInput').val();
+            let url = `/obs.html?username=${username}&showLikes=1&showChats=1&showGifts=1&showFollows=1&showJoins=1&bgColor=rgb(24,23,28)&fontColor=rgb(227,229,235)&fontSize=1.3em`;
+
+            if(username) {
+                window.open(url, '_blank');
+            } else {
+                alert("Enter username");
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="inputFields">
+        <p>Enter <b>@username</b> of a user who is currently live:</p>
+        <input type="text" id="uniqueIdInput">
+        <input type="button" id="connectButton" value="connect">
+        <button id="speakButton">Start</button>
+    </div>
+<br>
+<pre id="stateText"></pre>
+<br>
+<br>
+<div class="container">
+  <div id="underwater-world">
+    <div id="profile-container">
+      <h1 id="name" style="color:white">Hubner</h1>
+      <table width="100%">
+        <tr>
+          <td align="center">
+            <div class="image-border">
+              <img src="https://akcdn.detik.net.id/community/media/visual/2022/10/26/justin-hubner-elkan-baggott-2.jpeg?w=700&q=90"
+                id="image" alt="Profile Picture" width="1200" height="500">
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <h3 id="title" style="color:white" >Asmara</h3>
+      <p id="description" style="color:white">Jauhi kebiasaan yang tak disukainya meskipun dirinya saat ini selalu diam dan tidak mempermasalahkan nya</p>
+    </div>
+  </div>
+</div>
+
+
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <table class="splitstatetable">
+        <tr>
+            <td>
+            </td>
+            <td>
+                <div id="roomStats"></div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="splitchattable">
+        <tr>
+            <td>
+                <div class="chatcontainer">
+                    <h3 class="containerheader">Chats</h3>
+                </div>
+            </td>
+            <td>
+                <div class="giftcontainer">
+                    <h3 class="containerheader">Gifts</h3>
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+
+<style>
+body, html {
+  height: 100%;
+  margin: 0;
+  /* overflow: hidden; */
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+  /* align-items: center; */
+  width: 100%;
+  height: 100%;
+}
+
+#underwater-world {
+  position: relative;
+  background: linear-gradient(to bottom, #87ceeb, #1e90ff); /* Gradient background simulating underwater */
+  padding: 20px;
+  border-radius: 10px;
+  width: 40%;
+}
+
+#profile-container {
+  background-color: rgb(121,0,255);
+  border-radius: 10px;
+  text-align: center;
+  padding: 20px;
+}
+
+#profile-container img {
+  border-radius: 50%;
+  width: 200px;
+  height: 200px;
+  padding-top: 5px;
+}
+
+#profile-container .image-border{
+  border-radius: 50%;
+  width: 210px;
+  height: 210px;
+  background-color: white;
+}
+.bubble-container {
+  position: absolute;
+  animation: bubble-rise 10s infinite;
+}
+
+.bubble {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  background-image: none;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.bubble-text {
+  font-size: 12px;
+  text-align: center;
+  color: white;
+}
+
+@keyframes bubble-rise {
+  0% {
+    bottom: -50px;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    bottom: 100%;
+    opacity: 0;
+  }
+}
+</style>
+
+<script>
+  $(document).ready(function() {
+    // Create bubbles
+    let i = 1
+    for (i = 1; i < 21; i++) {
+      createBubble(i);
+    }
+
+    // Function to create a bubble
+    function createBubble(noId) {
+      var bubbleContainer = $("<div class='bubble-container'></div>");
+      //let bubble = $("<div class='bubble'><div class='bubble-text'>Bubble Title</div></div>");
+      let bubble = $("<div class='bubble' id='bubble-" + noId + "'></div>");
+      let size = Math.random() * 90 + 40; // Random size between 20px and 70px
+      let left = (Math.random()) * 90; // Random horizontal position
+      let animationDuration = Math.random() * 10 + 5 ; // Random animation duration between 2s and 5s capped at maximum 5s
+      let delay = Math.random() * 7; // Random delay before animation starts
+
+      bubble.css({
+        width: size + "px",
+        height: size + "px",
+        left: left + "%",
+        animationDuration: animationDuration + "s",
+        animationDelay: delay + "s"
+      });
+      bubbleContainer.css({
+        left: left + '%',
+        animationDuration: animationDuration + "s"
+      });
+      var text = $("<div class='bubble-text' id='bubble-text-" + noId + "'></div>"); //
+      bubbleContainer.append(bubble);
+      bubbleContainer.append(text);
+      $("#underwater-world").append(bubbleContainer);
+    }
+
+
+  });
+
+// const data = [
+//   { text: "aku adalah anak gembala selalu sedang dan gembira", imageUrl: "https://www.maybank.co.id/-/media/Article/Isi-Ulang-Pulsa-dan-Top-Up-Paket-Data-Via-M2U-ID-App-Agar-silahturahmi-tidak-terputus.jpg?h=370&la=id&w=540&hash=F178274FB5F6E905FDE740AB2B148A6CE9C8B2AC" },
+//   { text: "kau pikir kau lah segalanya, tuk ditakuti dan juga tuk di kagumi walau mempesona", imageUrl: "https://www.maybank.co.id/-/media/Article/Mudah-dan-Praktis-Tarik-Tunai-Tanpa-Kartu.jpg?h=370&la=id&w=540&hash=6A5BFAB2E634B14B3A55F894F266C7C35925CBC9" },
+//   { text: "kamu akan mendapatkan sesuatu yang sangat berharga dan kamu dambakan selama ini dalam beberapa hari kedepan", imageUrl: "https://www.maybank.co.id/-/media/Article/Tips-dan-cara-investasi-emas-secara-berkala-di-M2U-ID-App.jpg?h=370&la=id&w=540&hash=081E045B6EB975CCB81F07B96169ADEE2E8E0F84" }
+// ];
+
+// const speakButton = document.getElementById("speakButton");
+// const imageElement = document.getElementById("image");
+
+// // Function to speak text
+// function speakText(text) {
+//   return new Promise((resolve, reject) => {
+//       var utterance = new SpeechSynthesisUtterance();
+//       var voices = window.speechSynthesis.getVoices();
+//       utterance.voice = voices[11]; //set default google bahasa indonesia
+//       utterance.rate = 10 / 10;
+//       utterance.pitch = 1;
+//       utterance.text = text;
+
+//       utterance.onend = resolve;
+//       utterance.onerror = reject;
+//       window.speechSynthesis.speak(utterance);
+//   });
+// }
+
+// // Function to change image
+// function changeImage(imageUrl) {
+//   return new Promise((resolve, reject) => {
+//     imageElement.onload = resolve;
+//     imageElement.onerror = reject;
+//     imageElement.src = imageUrl;
+//   });
+// }
+
+// // Function to start speaking texts
+// async function speakTexts() {
+//   for (let i = 0; i < data.length; i++) {
+//     const item = data[i];
+//     await changeImage(item.imageUrl);
+//     await speakText(item.text);
+//   }
+// }
+
+
+</script>
+</html>
