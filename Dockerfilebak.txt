@@ -1,0 +1,23 @@
+# Step 1: Use official Node.js runtime as a base image
+FROM node:20-alpine
+
+# Step 2: Set the working directory in the container
+WORKDIR /app
+
+# Step 3: Copy only package.json (not package-lock.json)
+COPY package.json ./
+
+# Step 4: Install dependencies (without using package-lock.json)
+RUN npm install
+
+# Step 5: Copy the rest of the application code into the container
+COPY . .
+
+# Step 6: Copy SSL certificates into the container
+COPY ./ssl /app/ssl
+
+# Step 7: Expose the HTTPS port (8443 in your case)
+EXPOSE 8443
+
+# Step 8: Command to run the server (HTTPS in this case)
+CMD ["node", "server.js"]
