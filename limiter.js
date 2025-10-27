@@ -1,13 +1,4 @@
-let ipRequestCounts = {};
-
-let maxIpConnections = 10;
-let maxIpRequestsPerMinute = 5;
-
-setInterval(() => {
-    ipRequestCounts = {};
-}, 60 * 1000)
-
-function clientBlocked(io, currentSocket) {
+export function clientBlocked(io, currentSocket) {
     let ipCounts = getOverallIpConnectionCounts(io);
     let currentIp = getSocketIp(currentSocket);
 
@@ -44,7 +35,7 @@ function getOverallIpConnectionCounts(io) {
         } else {
             ipCounts[ip] += 1;
         }
-    })
+    });
 
     return ipCounts;
 }
@@ -57,6 +48,10 @@ function getSocketIp(socket) {
     }
 }
 
-module.exports = {
-    clientBlocked
-}
+let ipRequestCounts = {};
+let maxIpConnections = 10;
+let maxIpRequestsPerMinute = 5;
+
+setInterval(() => {
+    ipRequestCounts = {};
+}, 60 * 1000);

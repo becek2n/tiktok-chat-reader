@@ -1,10 +1,11 @@
-require('dotenv').config();
-
-const express = require('express');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
-const { TikTokConnectionWrapper, getGlobalConnectionCount } = require('./connectionWrapper');
-const { clientBlocked } = require('./limiter');
+// require('dotenv').config();
+import 'dotenv/config';
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import { TikTokConnectionWrapper, getGlobalConnectionCount } from './connectionWrapper.js';
+import { clientBlocked } from './limiter.js';
+import { WebcastEvent, ControlEvent } from 'tiktok-live-connector';
 
 const app = express();
 const httpServer = createServer(app);
@@ -16,15 +17,16 @@ const io = new Server(httpServer, {
     }
 });
 
-
 io.on('connection', (socket) => {
     let tiktokConnectionWrapper;
 
-    console.info('New connection from origin', socket.handshake.headers['origin'] || socket.handshake.headers['referer']);
+    console.info(
+        'New connection from origin',
+        socket.handshake.headers['origin'] || socket.handshake.headers['referer']
+    );
 
     socket.on('setUniqueId', (uniqueId, options) => {
-
-        // Prohibit the client from specifying these options (for security reasons)
+        // Prohibit the client from specifying unsafe options
         if (typeof options === 'object' && options) {
             delete options.requestOptions;
             delete options.websocketOptions;
@@ -32,19 +34,22 @@ io.on('connection', (socket) => {
             options = {};
         }
 
-        // Session ID in .env file is optional
+        // Optional session ID from .env
         if (process.env.SESSIONID) {
             options.sessionId = process.env.SESSIONID;
             console.info('Using SessionId');
         }
 
-        // Check if rate limit exceeded
+        // Check rate limit
         if (process.env.ENABLE_RATE_LIMIT && clientBlocked(io, socket)) {
-            socket.emit('tiktokDisconnected', 'You have opened too many connections or made too many connection requests. Please reduce the number of connections/requests or host your own server instance. The connections are limited to avoid that the server IP gets blocked by TokTok.');
+            socket.emit(
+                'tiktokDisconnected',
+                'You have opened too many connections or made too many connection requests. Please reduce the number of connections or host your own server instance.'
+            );
             return;
         }
 
-        // Connect to the given username (uniqueId)
+        // Connect to TikTok LIVE
         try {
             tiktokConnectionWrapper = new TikTokConnectionWrapper(uniqueId, options, true);
             tiktokConnectionWrapper.connect();
@@ -53,27 +58,33 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Redirect wrapper control events once
-        tiktokConnectionWrapper.once('connected', state => socket.emit('tiktokConnected', state));
-        tiktokConnectionWrapper.once('disconnected', reason => socket.emit('tiktokDisconnected', reason));
+        // Redirect wrapper connection lifecycle events
+        tiktokConnectionWrapper.once('connected', (state) => socket.emit('tiktokConnected', state));
+        tiktokConnectionWrapper.once('disconnected', (reason) =>
+            socket.emit('tiktokDisconnected', reason)
+        );
 
-        // Notify client when stream ends
-        tiktokConnectionWrapper.connection.on('streamEnd', () => socket.emit('streamEnd'));
+        const conn = tiktokConnectionWrapper.connection;
 
-        // Redirect message events
-        tiktokConnectionWrapper.connection.on('roomUser', msg => socket.emit('roomUser', msg));
-        tiktokConnectionWrapper.connection.on('member', msg => socket.emit('member', msg));
-        tiktokConnectionWrapper.connection.on('chat', msg => socket.emit('chat', msg));
-        tiktokConnectionWrapper.connection.on('gift', msg => socket.emit('gift', msg));
-        tiktokConnectionWrapper.connection.on('social', msg => socket.emit('social', msg));
-        tiktokConnectionWrapper.connection.on('like', msg => socket.emit('like', msg));
-        tiktokConnectionWrapper.connection.on('questionNew', msg => socket.emit('questionNew', msg));
-        tiktokConnectionWrapper.connection.on('linkMicBattle', msg => socket.emit('linkMicBattle', msg));
-        tiktokConnectionWrapper.connection.on('linkMicArmies', msg => socket.emit('linkMicArmies', msg));
-        tiktokConnectionWrapper.connection.on('liveIntro', msg => socket.emit('liveIntro', msg));
-        tiktokConnectionWrapper.connection.on('emote', msg => socket.emit('emote', msg));
-        tiktokConnectionWrapper.connection.on('envelope', msg => socket.emit('envelope', msg));
-        tiktokConnectionWrapper.connection.on('subscribe', msg => socket.emit('subscribe', msg));
+        // --- STREAM CONTROL EVENTS ---
+        conn.on(ControlEvent.STREAM_END, () => socket.emit('streamEnd'));
+        conn.on(ControlEvent.DISCONNECTED, () => socket.emit('tiktokDisconnected', 'Connection lost.'));
+        conn.on(ControlEvent.ERROR, (err) => socket.emit('tiktokError', err.toString()));
+
+        // --- WEBCAST EVENTS (viewer interactions) ---
+        conn.on(WebcastEvent.ROOM_USER, (msg) => socket.emit('roomUser', msg));
+        conn.on(WebcastEvent.MEMBER, (msg) => socket.emit('member', msg));
+        conn.on(WebcastEvent.CHAT, (msg) => socket.emit('chat', msg));
+        conn.on(WebcastEvent.GIFT, (msg) => socket.emit('gift', msg));
+        conn.on(WebcastEvent.SOCIAL, (msg) => socket.emit('social', msg));
+        conn.on(WebcastEvent.LIKE, (msg) => socket.emit('like', msg));
+        conn.on(WebcastEvent.QUESTION_NEW, (msg) => socket.emit('questionNew', msg));
+        conn.on(WebcastEvent.LINK_MIC_BATTLE, (msg) => socket.emit('linkMicBattle', msg));
+        conn.on(WebcastEvent.LINK_MIC_ARMIES, (msg) => socket.emit('linkMicArmies', msg));
+        conn.on(WebcastEvent.LIVE_INTRO, (msg) => socket.emit('liveIntro', msg));
+        conn.on(WebcastEvent.EMOTE, (msg) => socket.emit('emote', msg));
+        conn.on(WebcastEvent.ENVELOPE, (msg) => socket.emit('envelope', msg));
+        conn.on(WebcastEvent.SUBSCRIBE, (msg) => socket.emit('subscribe', msg));
     });
 
     socket.on('disconnect', () => {
@@ -86,12 +97,13 @@ io.on('connection', (socket) => {
 // Emit global connection statistics
 setInterval(() => {
     io.emit('statistic', { globalConnectionCount: getGlobalConnectionCount() });
-}, 5000)
+}, 5000);
 
-// Serve frontend files
+// Serve static frontend files
 app.use(express.static('public'));
 
-// Start http listener
-const port = process.env.PORT || 8081;
-httpServer.listen(port);
-console.info(`Server running! Please visit http://localhost:${port}`);
+// Start HTTP server
+const port = process.env.PORT || 8082;
+httpServer.listen(port, '0.0.0.0', () => {
+    console.info(`Server running! Please visit http://localhost:${port}`);
+});

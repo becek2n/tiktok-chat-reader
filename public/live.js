@@ -324,9 +324,9 @@ function addChatItem(color, data, text, summarize) {
 
     container.append(`
         <div class=${summarize ? 'temporary' : 'static'}>
-            <img class="miniprofilepicture" src="${data.profilePictureUrl}">
+            <img class="miniprofilepicture" src="${data.user.profilePicture.url[0]}">
             <span>
-                <b>${generateUsernameLink(data)}:</b>
+                <b>${generateUsernameLink(data.user)}:</b>
                 <span style="color:${color}">${sanitize(text)}</span>
             </span>
         </div>
@@ -561,14 +561,14 @@ connection.on('like', (msg) => {
     if (window.settings.showLikes === "0") return;
 
     if (typeof msg.likeCount === 'number') {
-        addChatItem('#447dd4', msg, msg.label.replace('{0:user}', '').replace('likes', `${msg.likeCount} likes`))
+        // addChatItem('#447dd4', msg, msg.label.replace('{0:user}', '').replace('likes', `${msg.likeCount} likes`))
     }
 
     if(bubbleCount == 20) bubbleCount = 0;
 
     bubbleCount += 1
-    $('#bubble-text-' + bubbleCount).text(msg.uniqueId);
-    document.getElementById('bubble-' + bubbleCount).style.backgroundImage="url('" + msg.profilePictureUrl + "')";
+    $('#bubble-text-' + bubbleCount).text(msg.user.uniqueId);
+    document.getElementById('bubble-' + bubbleCount).style.backgroundImage="url('" + msg.user.profilePicture.url[0] + "')";
 
 })
 
@@ -606,7 +606,7 @@ async function addChatCommentItem(data, chatText) {
     bubbleCount += 1
 
     $('#bubble-text-' + bubbleCount).text(data.uniqueId);
-    document.getElementById('bubble-' + bubbleCount).style.backgroundImage="url('" + data.profilePictureUrl + "')";
+    document.getElementById('bubble-' + bubbleCount).style.backgroundImage="url('" + data.user.profilePicture.url[0] + "')";
 
     //voice greeting
     var profileName = data?.nickname?.toString().toLowerCase().replace('_', ' ').replace('.', ' ');
@@ -626,7 +626,7 @@ async function addChatCommentItem(data, chatText) {
             }
             var model = models[randomNumber];
             await changeImage(
-                data.profilePictureUrl,
+                data.user.profilePicture.url[0],
                 chatText.replace('nama:', '').replace('nama : ', ''),
                 model['title'], model['description']
             );
